@@ -2,7 +2,8 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { VisualStyle, ProjectPurpose, ConceptCard, type ConceptData } from '../../components/lab/index';
+import { VisualStyle, ProjectPurpose, ConceptCard, type ConceptData } from '@/components/lab';
+
 
 // Define focus options with existing images
 const styleOptions = [
