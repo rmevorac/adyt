@@ -42,7 +42,7 @@ export default function ImageMenu({
   };
 
   return (
-    <div className={`group/menu ${className}`}>
+    <div className={`group/menu image-menu-container ${className}`}>
       {/* Circle that expands on hover */}
       <div className={`
         bg-white/40 transition-all duration-300 ease-out

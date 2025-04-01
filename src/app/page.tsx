@@ -1,18 +1,18 @@
 import Link from 'next/link';
-import LogoutButton from '@/components/LogoutButton';
+import { LogoutButton } from '@/components/navigation';
 import { getAuthUser } from '@/lib/auth';
 
 export default async function Home() {
   const user = await getAuthUser();
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
+    <main className="flex min-h-screen flex-col items-center justify-center p-24 text-center">
       <div className="flex flex-col items-center justify-center">
-        <h1 className="text-6xl font-bold mb-8">Adyt Studios</h1>
-        <p className="text-xl mb-8">Your creative image generation studio</p>
+        <h1 className="text-6xl font-bold mb-8 text-center">Adyt Studios</h1>
+        <p className="text-xl mb-8 text-center">Your creative image generation studio</p>
         
         {!user ? (
-          <div className="space-x-4">
+          <div className="flex justify-center space-x-4">
             <Link
               href="/auth/signup"
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
@@ -29,13 +29,15 @@ export default async function Home() {
         ) : (
           <div className="space-y-4 text-center">
             <p className="text-xl">Welcome back, {user.name || user.email}!</p>
-            <Link 
-              href="/lab" 
-              className="block bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            >
-              Go to Lab
-            </Link>
-            <div>
+            <div className="flex justify-center">
+              <Link 
+                href="/lab" 
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Go to Lab
+              </Link>
+            </div>
+            <div className="flex justify-center">
               <LogoutButton />
             </div>
           </div>

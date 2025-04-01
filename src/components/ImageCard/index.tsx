@@ -1,13 +1,11 @@
 'use client';
 
-// Re-export types
-export * from './types';
+// Export the ImageCard component as the default export
+export { default } from './ImageCard';
 
-// Re-export components
+// Export all related types and components
+export * from './types';
 export { default as ImageMenu } from './ImageMenu';
 export { default as ImageNotes } from './ImageNotes';
-export { default as ImageVariations } from './ImageVariations';
 export { default as ImageDisplay } from './ImageDisplay';
-
-// Re-export main component as default
-export { default } from './ImageCard'; 
+export { default as ImageVariations } from './ImageVariations'; 

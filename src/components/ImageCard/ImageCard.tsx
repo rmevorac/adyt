@@ -1,52 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { ImageCollection, ImageType, LocalState } from './types';
+import React, { useState, useEffect } from 'react';
+import { ImageType, LocalState, ImageCardProps, ImageItem, ImageVariation } from '../../types/image';
 import ImageMenu from './ImageMenu';
 import ImageNotes from './ImageNotes';
 import ImageVariations from './ImageVariations';
 import ImageDisplay from './ImageDisplay';
-import { preloadImage, preloadConceptImages, cleanupImageCache, isImageLoaded } from '../../utils/imageLoader';
-
-// Define the type for an image variation - For compatibility with existing code
-interface ImageVariation {
-  id: string;
-  url: string;
-  notes?: string;
-  selected: boolean;
-  revise: boolean;
-  reject: boolean;
-}
-
-// Define the type for an image item - For compatibility with existing code
-interface ImageItem {
-  id: string;
-  conceptId: string;  // ID for the group of variations
-  url: string;
-  selected: boolean;
-  revise: boolean;
-  reject: boolean;
-  notes?: string;
-  variations: ImageVariation[];
-  selectedVariation?: string;  // ID of the selected variation
-}
-
-interface ImageCardProps {
-  image: ImageItem;
-  onSelect: (id: string) => void;
-  onRevise: (id: string) => void;
-  onReject: (id: string) => void;
-  onNotesChange: (id: string, notes: string) => void;
-  onVariationSelect: (conceptId: string, variationId: string) => void;
-  onNext?: () => void;
-  onPrevious?: () => void;
-  hasNext?: boolean;
-  hasPrevious?: boolean;
-  isFullScreen?: boolean;
-  onFullScreenChange: (isOpen: boolean) => void;
-  nextImageUrl?: string;
-  previousImageUrl?: string;
-}
+import { preloadImage, preloadConceptImages, isImageLoaded } from '../../utils/imageLoader';
+import Image from 'next/image';
 
 // Fullscreen component with its own internal state
 function FullscreenView({
@@ -98,6 +59,7 @@ function FullscreenView({
   useEffect(() => {
     // When the image changes, reset to its current selected variation
     setSelectedVariation(image.selectedVariation);
+    console.log('FullscreenView - Image changed, updating selected variation:', image.selectedVariation);
   }, [image.id, image.selectedVariation]);
   
   useEffect(() => {
@@ -133,20 +95,26 @@ function FullscreenView({
   
   // Handle wheel for zoom
   const handleWheel = (e: React.WheelEvent) => {
+    // Always prevent default scrolling behavior and stop propagation
     e.preventDefault();
-    const delta = -e.deltaY;
-    const zoomFactor = 0.2;
-    const newScale = Math.max(1, Math.min(4, scale + (delta > 0 ? zoomFactor : -zoomFactor)));
+    e.stopPropagation();
     
-    if (newScale < scale) {
-      const factor = (newScale - 1) / (scale - 1);
-      setPosition({
-        x: position.x * factor,
-        y: position.y * factor
-      });
+    // Only allow zooming when directly over the image container
+    if (e.currentTarget.classList.contains('image-container')) {
+      const delta = -e.deltaY;
+      const zoomFactor = 0.2;
+      const newScale = Math.max(1, Math.min(4, scale + (delta > 0 ? zoomFactor : -zoomFactor)));
+      
+      if (newScale < scale) {
+        const factor = (newScale - 1) / (scale - 1);
+        setPosition({
+          x: position.x * factor,
+          y: position.y * factor
+        });
+      }
+      
+      setScale(newScale);
     }
-    
-    setScale(newScale);
   };
 
   // Handle mouse events for dragging
@@ -171,16 +139,37 @@ function FullscreenView({
   
   // Get the current image based on local selectedVariation
   const getCurrentImage = (): ImageType => {
+    console.log('FullscreenView - Getting current image:', {
+      imageId: image.id,
+      selectedVariation,
+      variationsCount: image.variations.length,
+      variationIds: image.variations.map(v => v.id)
+    });
+    
+    // If there's a selected variation, find it in the variations array
     if (selectedVariation) {
       const variation = image.variations.find(v => v.id === selectedVariation);
       if (variation) {
+        console.log('Found selected variation:', variation);
         return variation;
       }
     }
-    return image;
+    
+    // Find the variation that matches the image.id
+    const defaultVariation = image.variations.find(v => v.id === image.id);
+    if (defaultVariation) {
+      console.log('Found default variation matching image.id:', defaultVariation);
+      return defaultVariation;
+    }
+    
+    // Fallback to the first variation or the image itself
+    const fallback = image.variations[0] || image;
+    console.log('Using fallback variation:', fallback);
+    return fallback;
   };
   
   const currentImage = getCurrentImage();
+  console.log('FullscreenView - Current image selected:', currentImage);
   
   // Get local state for the current image
   const getCurrentLocalState = (): LocalState => {
@@ -193,10 +182,11 @@ function FullscreenView({
   // Handle variation selection locally
   const handleVariationSelect = (variationId: string) => {
     // Update our local state
-    setSelectedVariation(variationId === image.id ? undefined : variationId);
+    setSelectedVariation(variationId);
     
-    // Also tell the parent component, but it won't update the grid view in real-time
-    onVariationSelect(image.conceptId, variationId);
+    // Don't call the parent's onVariationSelect inside fullscreen view to prevent
+    // the fullscreen from closing when switching variations
+    // We'll update the parent when the fullscreen closes
   };
   
   // Handle select, revise, reject actions with toggling behavior
@@ -266,49 +256,42 @@ function FullscreenView({
     onNotesChange(targetId, value);
   };
 
-  // Handle keyboard navigation for variations
+  // Handle keyboard navigation for variations in FullscreenView
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // We simply work with the variations array now, no need to add the main image
       if (e.key === 'ArrowRight') {
-        const currentIndex = selectedVariation 
+        // Find the current index in the variations array
+        let currentIndex = selectedVariation 
           ? image.variations.findIndex(v => v.id === selectedVariation)
-          : -1;
+          : -1; // Not selected means we're viewing the main variation
         
-        if (currentIndex === -1) {
-          // If we're on the main image, go to first variation
-          if (image.variations.length > 0) {
-            handleVariationSelect(image.variations[0].id);
-          }
-        } else if (currentIndex === image.variations.length - 1) {
-          // If we're on last variation, go to main image
-          handleVariationSelect(image.id);
-        } else {
-          // Go to next variation
-          handleVariationSelect(image.variations[currentIndex + 1].id);
-        }
+        if (currentIndex === -1) currentIndex = 0; // Default to first variation
+        
+        // Calculate the next index (with wrap-around)
+        const nextIndex = (currentIndex + 1) % image.variations.length;
+        
+        // Select the next variation
+        handleVariationSelect(image.variations[nextIndex].id);
       } else if (e.key === 'ArrowLeft') {
-        const currentIndex = selectedVariation 
+        // Find the current index in the variations array
+        let currentIndex = selectedVariation 
           ? image.variations.findIndex(v => v.id === selectedVariation)
-          : -1;
+          : -1; // Not selected means we're viewing the main variation
         
-        if (currentIndex === -1) {
-          // If we're on the main image and click previous, go to last variation
-          if (image.variations.length > 0) {
-            handleVariationSelect(image.variations[image.variations.length - 1].id);
-          }
-        } else if (currentIndex === 0) {
-          // If we're on first variation, go to main image
-          handleVariationSelect(image.id);
-        } else {
-          // Go to previous variation
-          handleVariationSelect(image.variations[currentIndex - 1].id);
-        }
+        if (currentIndex === -1) currentIndex = 0; // Default to first variation
+        
+        // Calculate the previous index (with wrap-around)
+        const prevIndex = (currentIndex - 1 + image.variations.length) % image.variations.length;
+        
+        // Select the previous variation
+        handleVariationSelect(image.variations[prevIndex].id);
       }
     };
-
+    
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [image.variations, selectedVariation]);
+  }, [image.variations, selectedVariation, handleVariationSelect]);
 
   const hasVariations = image.variations.length > 0;
 
@@ -317,14 +300,17 @@ function FullscreenView({
       className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
+          // When closing fullscreen, update the parent's selected variation
+          if (selectedVariation) {
+            onVariationSelect(image.conceptId, selectedVariation);
+          }
           onClose();
         }
       }}
-      onWheel={handleWheel}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <div className="relative max-w-4xl w-full h-[90vh] flex flex-col">
+      <div className="relative max-w-5xl w-full h-[95vh] flex flex-col">
         <div className="flex-grow flex items-start gap-4">
           {/* Menu in fullscreen view */}
           <div className={`flex-shrink-0 transition-opacity duration-200 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}>
@@ -339,8 +325,8 @@ function FullscreenView({
           </div>
 
           {/* Image display in fullscreen */}
-          <div className="flex-grow flex flex-col items-center">
-            <div className="relative w-full max-w-4xl mx-auto">
+          <div className="flex-grow flex flex-col h-full">
+            <div className="h-[75vh] w-full max-w-5xl mx-auto">
               <ImageDisplay
                 imageUrl={currentImage.url}
                 hasNext={!!hasNext}
@@ -360,28 +346,32 @@ function FullscreenView({
 
             {/* Variations in fullscreen */}
             {imageLoaded && hasVariations && (
-              <div className="mt-6 w-full">
-                <ImageVariations
-                  mainImage={image}
-                  variations={image.variations}
-                  selectedId={selectedVariation || image.id}
-                  onVariationSelect={handleVariationSelect}
-                  localStates={fullscreenLocalStates}
-                />
+              <div className="h-[12vh] w-full overflow-hidden py-0 flex items-center justify-center">
+                <div className="h-full flex justify-center items-center mx-auto">
+                  <ImageVariations
+                    mainImage={currentImage}
+                    variations={image.variations}
+                    selectedId={selectedVariation || image.id}
+                    onVariationSelect={handleVariationSelect}
+                    localStates={fullscreenLocalStates}
+                  />
+                </div>
               </div>
             )}
           </div>
         </div>
 
         {/* Notes textarea in fullscreen */}
-        <div className="h-[80px] flex items-center justify-center px-4 mt-4">
-          <ImageNotes
-            notes={currentImage.notes}
-            isSelected={currentImage.selected || currentLocalState.selected}
-            isRevise={currentImage.revise || currentLocalState.revise}
-            isReject={currentImage.reject || currentLocalState.reject}
-            onChange={handleNotesChange}
-          />
+        <div className="h-[80px] flex items-center justify-center px-4 mt-auto mb-6">
+          <div className="w-full max-w-4xl mx-auto">
+            <ImageNotes
+              notes={currentImage.notes}
+              isSelected={currentImage.selected || currentLocalState.selected}
+              isRevise={currentImage.revise || currentLocalState.revise}
+              isReject={currentImage.reject || currentLocalState.reject}
+              onChange={handleNotesChange}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -405,6 +395,7 @@ export default function ImageCard({
   previousImageUrl,
 }: ImageCardProps) {
   const [imageLoaded, setImageLoaded] = useState(isImageLoaded(image.url));
+  const [isMenuHovered, setIsMenuHovered] = useState(false);
   
   // Shared state for grid and fullscreen
   const [localStates, setLocalStates] = useState<Record<string, LocalState>>({});
@@ -413,7 +404,7 @@ export default function ImageCard({
     setImageLoaded(isImageLoaded(image.url));
   }, [image.url]);
 
-  // Get the current image and state (only using the grid's selected variation)
+  // Get the current image based on selectedVariation
   const getCurrentImage = (): ImageType => {
     if (image.selectedVariation) {
       const variation = image.variations.find(v => v.id === image.selectedVariation);
@@ -510,14 +501,16 @@ export default function ImageCard({
       <div className="aspect-square group relative overflow-hidden">
         <div 
           id={`image-${image.id}`}
-          className="w-full h-full cursor-pointer"
+          className="w-full h-full cursor-pointer relative"
           onClick={() => onFullScreenChange(true)}
         >
-          <img
+          <Image
             src={currentImage.url}
             alt="Generated content"
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover"
             onLoad={() => setImageLoaded(true)}
+            unoptimized // Since we're dealing with dynamically generated images
           />
           
           {/* Navigation arrows for variations in grid view */}
@@ -527,22 +520,22 @@ export default function ImageCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  const currentIndex = image.selectedVariation 
-                    ? image.variations.findIndex(v => v.id === image.selectedVariation)
-                    : -1;
+                  // We simply work with the variations array now, no need to add the main image
                   
-                  if (currentIndex === -1) {
-                    // If we're on the main image and click previous, go to last variation
-                    onVariationSelect(image.conceptId, image.variations[image.variations.length - 1].id);
-                  } else if (currentIndex === 0) {
-                    // If we're on first variation, go to main image
-                    onVariationSelect(image.conceptId, image.id);
-                  } else {
-                    // Go to previous variation
-                    onVariationSelect(image.conceptId, image.variations[currentIndex - 1].id);
-                  }
+                  // Find the current index in the variations array
+                  let currentIndex = image.selectedVariation 
+                    ? image.variations.findIndex(v => v.id === image.selectedVariation)
+                    : -1; // Not selected means we're viewing the first variation (index 0)
+                  
+                  if (currentIndex === -1) currentIndex = 0; // Default to first variation
+                  
+                  // Calculate the previous index (with wrap-around)
+                  const prevIndex = (currentIndex - 1 + image.variations.length) % image.variations.length;
+                  
+                  // Select the previous variation
+                  onVariationSelect(image.conceptId, image.variations[prevIndex].id);
                 }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-1.5 rounded-full bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-white/60"
+                className={`absolute left-2 top-1/2 -translate-y-1/2 z-10 p-1.5 rounded-full bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-white/60 ${isMenuHovered ? '!opacity-0' : ''}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-800" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -553,22 +546,22 @@ export default function ImageCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  const currentIndex = image.selectedVariation 
-                    ? image.variations.findIndex(v => v.id === image.selectedVariation)
-                    : -1;
+                  // We simply work with the variations array now, no need to add the main image
                   
-                  if (currentIndex === -1) {
-                    // If we're on the main image, go to first variation
-                    onVariationSelect(image.conceptId, image.variations[0].id);
-                  } else if (currentIndex === image.variations.length - 1) {
-                    // If we're on last variation, go to main image
-                    onVariationSelect(image.conceptId, image.id);
-                  } else {
-                    // Go to next variation
-                    onVariationSelect(image.conceptId, image.variations[currentIndex + 1].id);
-                  }
+                  // Find the current index in the variations array
+                  let currentIndex = image.selectedVariation 
+                    ? image.variations.findIndex(v => v.id === image.selectedVariation)
+                    : -1; // Not selected means we're viewing the first variation (index 0)
+                  
+                  if (currentIndex === -1) currentIndex = 0; // Default to first variation
+                  
+                  // Calculate the next index (with wrap-around)
+                  const nextIndex = (currentIndex + 1) % image.variations.length;
+                  
+                  // Select the next variation
+                  onVariationSelect(image.conceptId, image.variations[nextIndex].id);
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-1.5 rounded-full bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-white/60"
+                className={`absolute right-2 top-1/2 -translate-y-1/2 z-10 p-1.5 rounded-full bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-white/60 ${isMenuHovered ? '!opacity-0' : ''}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-800" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
@@ -576,8 +569,8 @@ export default function ImageCard({
               </button>
 
               {/* Variation indicator dots */}
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                {/* Main image dot */}
+              <div className={`absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${isMenuHovered ? '!opacity-0' : ''}`}>
+                {/* Include main image as first dot */}
                 <div className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${!image.selectedVariation ? 'bg-white scale-125' : 'bg-white/50'}`} />
                 {/* Variation dots */}
                 {image.variations.map((variation) => (
@@ -592,12 +585,16 @@ export default function ImageCard({
           
           {/* Menu in grid view */}
           <div className="absolute top-2 left-2 z-30">
-            <div className={`
-              ${!currentImage.selected && !currentImage.revise && !currentImage.reject && 
-                !currentLocalState.selected && !currentLocalState.revise && !currentLocalState.reject ? 
-                'opacity-0 group-hover:opacity-100' : 'opacity-100'}
-              transition-all duration-300
-            `}>
+            <div 
+              className={`
+                ${!currentImage.selected && !currentImage.revise && !currentImage.reject && 
+                  !currentLocalState.selected && !currentLocalState.revise && !currentLocalState.reject ? 
+                  'opacity-0 group-hover:opacity-100' : 'opacity-100'}
+                transition-all duration-300
+              `}
+              onMouseEnter={() => setIsMenuHovered(true)}
+              onMouseLeave={() => setIsMenuHovered(false)}
+            >
               <ImageMenu
                 isCurrentlySelected={currentImage.selected || currentLocalState.selected}
                 isCurrentlyRevise={currentImage.revise || currentLocalState.revise}

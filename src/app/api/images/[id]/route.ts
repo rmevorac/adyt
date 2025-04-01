@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/db';
+import { ImageUpdateData } from '../../../../types/image';
 
 // GET /api/images/[id] - Get a specific image
 export async function GET(
@@ -38,7 +39,7 @@ export async function PUT(
   try {
     const { id } = params;
     const body = await request.json();
-    const { selected, revise, reject, reviseNote, rejectNote, reelNote } = body;
+    const updateFields = body as ImageUpdateData;
 
     // Check if image exists
     const imageExists = await prisma.image.findUnique({
@@ -53,15 +54,15 @@ export async function PUT(
     }
     
     // Define update data based on provided fields
-    const updateData: any = {};
+    const updateData: ImageUpdateData = {};
     
     // Only include fields that are explicitly provided
-    if (selected !== undefined) updateData.selected = selected;
-    if (revise !== undefined) updateData.revise = revise;
-    if (reject !== undefined) updateData.reject = reject;
-    if (reviseNote !== undefined) updateData.reviseNote = reviseNote;
-    if (rejectNote !== undefined) updateData.rejectNote = rejectNote;
-    if (reelNote !== undefined) updateData.reelNote = reelNote;
+    if (updateFields.selected !== undefined) updateData.selected = updateFields.selected;
+    if (updateFields.revise !== undefined) updateData.revise = updateFields.revise;
+    if (updateFields.reject !== undefined) updateData.reject = updateFields.reject;
+    if (updateFields.reviseNote !== undefined) updateData.reviseNote = updateFields.reviseNote;
+    if (updateFields.rejectNote !== undefined) updateData.rejectNote = updateFields.rejectNote;
+    if (updateFields.reelNote !== undefined) updateData.reelNote = updateFields.reelNote;
     
     // Update the image
     const updatedImage = await prisma.image.update({

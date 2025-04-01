@@ -165,12 +165,36 @@ export interface Image {
   updatedAt: string;
 }
 
+// New concept-based representation for future API implementations
+export interface ImageConcept {
+  id: string;
+  name: string;
+  directoryPath: string;
+  projectId: string;
+  variations: ImageVariation[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImageVariation {
+  id: string;
+  url: string;
+  conceptId: string;
+  selected: boolean;
+  revise: boolean;
+  reject: boolean;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Project {
   id: string;
   name: string;
   description: string | null;
   userId: string;
   images?: Image[];
+  concepts?: ImageConcept[]; // For future implementations
   createdAt: string;
   updatedAt: string;
   _count?: {

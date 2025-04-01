@@ -2,14 +2,17 @@ import { verify } from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { prisma } from './prisma';
 
+/**
+ * Server-side authentication utilities
+ */
+
 export async function getAuthUser() {
   try {
-    // Get cookies, this returns ReadonlyRequestCookies in Next.js 15.x
-    const cookieJar = cookies();
+    // In Next.js 15.2, cookies() returns a Promise
+    const cookieStore = await cookies();
     
-    // Note: TypeScript thinks this doesn't exist, but it does in Next.js 15
-    // @ts-ignore - TypeScript definitions may be out of date
-    const token = cookieJar.get('auth-token')?.value;
+    // Now we can safely access the get method
+    const token = cookieStore.get('auth-token')?.value;
     
     if (!token) {
       return null;

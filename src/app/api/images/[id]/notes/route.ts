@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../../lib/db';
+import { NoteType } from '../../../../../types/image';
 
 // PUT /api/images/[id]/notes - Update notes for a specific image
 export async function PUT(
@@ -9,7 +10,7 @@ export async function PUT(
   try {
     const { id } = params;
     const body = await request.json();
-    const { type, content } = body;
+    const { type, content } = body as { type: NoteType; content: string };
     
     // Validate input
     if (!type || !content) {
@@ -39,10 +40,10 @@ export async function PUT(
       );
     }
     
-    // Build update data dynamically
-    const updateData: any = {
+    // Build update data with proper typing
+    const updateData = {
       [type]: content
-    };
+    } as Record<NoteType, string>;
     
     // Update the image
     const updatedImage = await prisma.image.update({

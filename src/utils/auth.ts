@@ -1,5 +1,9 @@
 'use client';
 
+/**
+ * Client-side authentication utilities
+ */
+
 export const sendVerificationCode = async (email: string) => {
   const response = await fetch('/api/auth/send-code', {
     method: 'POST',

@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { ImageVariationsProps, ImageType, LocalState } from './types';
 
 export default function ImageVariations({
@@ -10,6 +11,28 @@ export default function ImageVariations({
   onVariationSelect,
   localStates
 }: ImageVariationsProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const selectedRef = useRef<HTMLDivElement>(null);
+  
+  // Scroll to selected variation whenever it changes
+  useEffect(() => {
+    if (selectedRef.current && containerRef.current) {
+      const container = containerRef.current;
+      const selectedElement = selectedRef.current;
+      
+      // Calculate scroll position to center the element
+      const scrollPosition = selectedElement.offsetLeft + 
+        (selectedElement.offsetWidth / 2) - 
+        (container.offsetWidth / 2);
+        
+      // Smooth scroll to the position
+      container.scrollTo({
+        left: scrollPosition,
+        behavior: 'smooth'
+      });
+    }
+  }, [selectedId]);
+
   // Helper function to get status icon based on image status
   const getStatusIcon = (image: ImageType, localState?: LocalState) => {
     if (image.selected || localState?.selected) {
@@ -47,53 +70,48 @@ export default function ImageVariations({
       localState?.selected || localState?.revise || localState?.reject
     );
   };
+  
+  // Use all variations including what was previously the "main image"
+  // mainImage is now just the currently displayed variation
+  const allVariations = variations;
 
   return (
-    <div className="flex gap-2 justify-center">
-      {/* Main image tile */}
-      <div
-        onClick={() => onVariationSelect(mainImage.id)}
-        className={`
-          flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 relative cursor-pointer
-          ${selectedId === mainImage.id ? 'w-20 h-20 border-white' : 'w-16 h-16 border-transparent hover:border-white/50'}
-        `}
-      >
-        {/* Status indicator */}
-        {hasStatus(mainImage, localStates[mainImage.id]) && (
-          <div className="absolute top-1 left-1 w-6 h-6 rounded-full bg-white/40 flex items-center justify-center">
-            {getStatusIcon(mainImage, localStates[mainImage.id])}
-          </div>
-        )}
-        <img
-          src={mainImage.url}
-          alt="Original"
-          className="w-full h-full object-cover"
-        />
-      </div>
-      
-      {/* Variations */}
-      {variations.map((variation) => (
-        <div
-          key={variation.id}
-          onClick={() => onVariationSelect(variation.id)}
-          className={`
-            flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 relative cursor-pointer
-            ${selectedId === variation.id ? 'w-20 h-20 border-white' : 'w-16 h-16 border-transparent hover:border-white/50'}
-          `}
-        >
-          {/* Status indicator */}
-          {hasStatus(variation, localStates[variation.id]) && (
-            <div className="absolute top-1 left-1 w-6 h-6 rounded-full bg-white/40 flex items-center justify-center">
-              {getStatusIcon(variation, localStates[variation.id])}
+    <div ref={containerRef} className="flex gap-3 justify-center items-center w-full h-full">
+      {/* Render all variations, treating them equally */}
+      {allVariations.map((variation, index) => {
+        const isSelected = selectedId === variation.id;
+        return (
+          <div
+            key={`variation-${index}-${variation.id}`}
+            ref={isSelected ? selectedRef : null}
+            onClick={() => onVariationSelect(variation.id)}
+            className={`
+              flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 relative cursor-pointer
+              ${isSelected ? 'border-white shadow-md shadow-white/30' : 'border-transparent hover:border-white/50'}
+            `}
+            style={{
+              width: isSelected ? '74px' : '60px',
+              height: isSelected ? '74px' : '60px'
+            }}
+          >
+            {/* Status indicator */}
+            {hasStatus(variation, localStates[variation.id]) && (
+              <div className="absolute top-1 left-1 w-6 h-6 rounded-full bg-white/40 flex items-center justify-center z-10">
+                {getStatusIcon(variation, localStates[variation.id])}
+              </div>
+            )}
+            <div className="relative w-full h-full">
+              <Image
+                src={variation.url}
+                alt={`Variation ${variation.id}`}
+                fill
+                className="object-cover"
+                unoptimized // Since we're dealing with dynamically generated images
+              />
             </div>
-          )}
-          <img
-            src={variation.url}
-            alt={`Variation ${variation.id}`}
-            className="w-full h-full object-cover"
-          />
-        </div>
-      ))}
+          </div>
+        );
+      })}
     </div>
   );
 } 

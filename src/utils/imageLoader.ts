@@ -48,18 +48,4 @@ export async function preloadConceptImages(
     console.error(`Error preloading concept images for ${id}:`, error);
     throw error;
   }
-}
-
-/**
- * Clean up the image cache, keeping only the specified URLs
- */
-export function cleanupImageCache(urlsToKeep: string[]): void {
-  const urlSet = new Set(urlsToKeep);
-  
-  // Remove any URLs from the cache that aren't in the urlsToKeep list
-  Object.keys(loadedImages).forEach(url => {
-    if (!urlSet.has(url)) {
-      delete loadedImages[url];
-    }
-  });
 } 
