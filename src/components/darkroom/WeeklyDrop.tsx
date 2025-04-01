@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import ImageCard from '../imageCard/ImageCard';
+import ImageCard from '../imageCard';
 import { imagesAPI } from '../../lib/api';
 import { 
   ImageItem, 
