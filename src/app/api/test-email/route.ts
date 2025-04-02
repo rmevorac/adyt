@@ -1,8 +1,28 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-// Initialize Resend with the API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Create a mock version if API key is missing
+const createResendClient = () => {
+  const apiKey = process.env.RESEND_API_KEY;
+  
+  if (!apiKey) {
+    // Mock implementation for Resend
+    console.log('WARNING: No Resend API key found, using mock implementation');
+    return {
+      emails: {
+        send: async (data: any) => {
+          console.log('MOCK EMAIL SEND:', data);
+          return { id: 'mock-email-id', data };
+        }
+      }
+    };
+  }
+  
+  return new Resend(apiKey);
+};
+
+// Initialize Resend with the API key or use mock
+const resend = createResendClient();
 
 export async function GET(request: Request) {
   try {
