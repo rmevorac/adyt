@@ -52,7 +52,6 @@ export default function ImageMenu({
         shadow-md
         origin-top
         border border-gray-200/20
-        group-hover/menu:backdrop-blur-sm
         group-hover/menu:bg-white/40
       `}>
         {/* Static circle with icon */}

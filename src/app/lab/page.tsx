@@ -328,6 +328,7 @@ export default function LabPage() {
                 key={concept.id}
                 id={concept.id}
                 index={index + 1}
+                totalConcepts={concepts.length}
                 onRemove={removeConcept}
                 onChange={updateConcept}
                 isExpanded={expandedConceptId === concept.id}

@@ -310,6 +310,21 @@ function FullscreenView({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
+      {/* Close Button */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent background click from firing too
+          onClose();
+        }}
+        className="absolute top-4 right-4 z-50 p-2 text-white transition-opacity hover:opacity-75"
+        aria-label="Close fullscreen view"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
       <div className="relative max-w-5xl w-full h-[95vh] flex flex-col">
         <div className="flex-grow flex items-start gap-4">
           {/* Menu in fullscreen view */}
@@ -514,7 +529,7 @@ export default function ImageCard({
           />
           
           {/* Navigation arrows for variations in grid view */}
-          {hasVariations && (
+          {image.variations.length > 1 && (
             <>
               {/* Previous arrow */}
               <button

@@ -6,6 +6,7 @@ import Image from 'next/image';
 interface ConceptCardProps {
   id: string;
   index: number;
+  totalConcepts: number;
   onRemove: (id: string) => void;
   onChange: (id: string, data: ConceptData) => void;
   isExpanded: boolean;
@@ -19,7 +20,7 @@ export interface ConceptData {
   name?: string;
 }
 
-export default function ConceptCard({ id, index, onRemove, onChange, isExpanded, onToggleExpand }: ConceptCardProps) {
+export default function ConceptCard({ id, index, totalConcepts, onRemove, onChange, isExpanded, onToggleExpand }: ConceptCardProps) {
   const [data, setData] = useState<ConceptData>({
     images: [],
     inspoLinks: [''],
@@ -208,6 +209,7 @@ export default function ConceptCard({ id, index, onRemove, onChange, isExpanded,
                 onChange={(e) => setConceptName(e.target.value)}
                 className="font-medium text-gray-800 mr-2 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 autoFocus
+                onFocus={(e) => e.target.select()}
                 onBlur={saveName}
                 onKeyDown={(e) => e.key === 'Enter' && saveName()}
               />
@@ -234,6 +236,7 @@ export default function ConceptCard({ id, index, onRemove, onChange, isExpanded,
           
           {/* Expand/collapse button */}
           <button
+            type="button"
             onClick={() => onToggleExpand(id)}
             className="ml-3 text-gray-400 hover:text-gray-600 transition-colors"
           >
@@ -243,14 +246,16 @@ export default function ConceptCard({ id, index, onRemove, onChange, isExpanded,
           </button>
         </div>
         
-        <button 
-          onClick={() => onRemove(id)}
-          className="text-gray-400 hover:text-red-500 transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-        </button>
+        {totalConcepts > 1 && (
+          <button 
+            onClick={() => onRemove(id)}
+            className="text-gray-400 hover:text-red-500 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+        )}
       </div>
       
       {/* Collapsible content */}
@@ -374,6 +379,7 @@ export default function ConceptCard({ id, index, onRemove, onChange, isExpanded,
                     />
                     {data.inspoLinks.length > 1 && (
                       <button
+                        type="button"
                         onClick={() => removeInspoLink(index)}
                         className="p-1.5 text-gray-400 hover:text-red-500 rounded-md transition-colors"
                       >
