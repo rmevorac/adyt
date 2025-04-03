@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -17,72 +18,88 @@ const productDirectories = [
 ];
 
 // Function to get all images from a product directory
-function getProductImages(productDir: string): { main: string; variations: string[] } {
+function getProductImages(productDir: string): string[] {
   const dirPath = path.join(process.cwd(), 'public', 'images', productDir);
   try {
     const files = fs.readdirSync(dirPath)
-      .filter(file => file.endsWith('.png') || file.endsWith('.jpeg'))
+      .filter(file => file.endsWith('.png') || file.endsWith('.jpeg') || file.endsWith('.jpg')) // Added .jpg
       .map(file => `/images/${productDir}/${file}`);
     
-    // Return the first image as main and the rest as variations
-    return {
-      main: files[0],
-      variations: files.slice(1)
-    };
+    // Return all found image URLs
+    return files;
   } catch (error) {
     console.error(`Error reading directory ${productDir}:`, error);
-    return { main: '', variations: [] };
+    return []; // Return an empty array on error
   }
 }
 
 async function main() {
-  // Clear existing data
-  await prisma.image.deleteMany({});
-  await prisma.project.deleteMany({});
-  await prisma.user.deleteMany({});
+  // Clear existing data - This might still run, consider if you want this in prod
+  // await prisma.image.deleteMany({});
+  // await prisma.project.deleteMany({});
+  // await prisma.user.deleteMany({});
+  // console.log('Database cleared');
 
-  console.log('Database cleared');
+  // --- Conditional Seeding based on Environment --- 
+  // Vercel automatically sets NODE_ENV to 'production' for production deployments
+  // Preview deployments usually have NODE_ENV as 'preview' or 'development'
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('Running seed script for non-production environment...');
 
-  // Create a test user
-  const user = await prisma.user.create({
-    data: {
-      email: 'test@example.com',
-      name: 'Test User',
-    },
-  });
+    // Clear data only for non-production seeds
+    await prisma.image.deleteMany({});
+    await prisma.project.deleteMany({});
+    await prisma.user.deleteMany({});
+    console.log('Non-production database cleared');
 
-  console.log(`Created user: ${user.email}`);
+    // Create a test user with hashed password
+    const hashedPassword = await bcrypt.hash('test123', 10);
+    const user = await prisma.user.create({
+      data: {
+        email: 'test@example.com',
+        name: 'Test User',
+        password: hashedPassword,
+      },
+    });
+    console.log(`Created test user: ${user.email}`);
 
-  // Create a test project
-  const project = await prisma.project.create({
-    data: {
-      name: 'Demo Project',
-      description: 'A demonstration project with sample images',
-      userId: user.id,
-    },
-  });
+    // Create a test project
+    const project = await prisma.project.create({
+      data: {
+        name: 'Demo Project',
+        description: 'A demonstration project with sample images',
+        userId: user.id,
+      },
+    });
+    console.log(`Created test project: ${project.name}`);
 
-  console.log(`Created project: ${project.name}`);
+    // Create images for each product directory
+    for (const productDir of productDirectories) {
+      const imageUrls = getProductImages(productDir); // Get all image URLs for the directory
 
-  // Create images for each product directory
-  for (const productDir of productDirectories) {
-    const { main, variations } = getProductImages(productDir);
-    if (main) {
-      await prisma.image.create({
-        data: {
-          url: main,
-          projectId: project.id,
-          selected: false,
-          revise: false,
-          reject: false,
-          variations,
-        },
-      });
-      console.log(`Created image for ${productDir} with ${variations.length} variations`);
+      // Create an Image record for each URL found
+      for (const imageUrl of imageUrls) {
+        await prisma.image.create({
+          data: {
+            url: imageUrl,
+            projectId: project.id,
+            // The Image model no longer has selected, revise, reject, variations fields
+          },
+        });
+      }
+
+      if (imageUrls.length > 0) {
+        console.log(`Created concept for ${project.name} with ${imageUrls.length} images`);
+      } else {
+        console.log(`No images found in directory ${productDir}`);
+      }
     }
-  }
 
-  console.log('Finished creating all images');
+    console.log('Finished creating all test images');
+  } else {
+    console.log('Skipping seed script for production environment.');
+    // You could add production-specific seeding here if needed later
+  }
 }
 
 main()
